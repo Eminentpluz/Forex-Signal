@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SMC Terminal · Forex Signal Engine</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #04080f;
+    --bg2:      #071020;
+    --bg3:      #0f172a;
+    --border:   #1e3a5f;
+    --border2:  #0f172a;
+    --cyan:     #38bdf8;
+    --green:    #10b981;
+    --amber:    #f59e0b;
+    --purple:   #818cf8;
+    --muted:    #64748b;
+    --dim:      #334155;
+    --text:     #94a3b8;
+    --white:    #e2e8f0;
+    --mono:     'Share Tech Mono', 'Courier New', monospace;
+    --sans:     'Rajdhani', sans-serif;
+  }
+
+  html, body {
+    min-height: 100vh;
+    background: var(--bg);
+    background-image:
+      radial-gradient(ellipse at 15% 0%, #0f2040 0%, transparent 55%),
+      radial-gradient(ellipse at 85% 100%, #0a1628 0%, transparent 55%);
+    color: var(--white);
+    font-family: var(--mono);
+  }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg3); }
+  ::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
+
+  /* ── HEADER ── */
+  #header {
+    position: sticky; top: 0; z-index: 50;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    padding: 13px 24px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  #header .left { display: flex; align-items: center; gap: 10px; }
+  .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--green); box-shadow: 0 0 8px var(--green);
+    animation: pulse 2s infinite;
+  }
+  .label-sm { font-size: 10px; letter-spacing: 0.14em; color: var(--cyan); }
+  .sep { color: var(--border); }
+  .label-xs { font-size: 9px; letter-spacing: 0.1em; color: var(--muted); }
+  #clock { font-size: 9px; color: var(--dim); letter-spacing: 0.08em; }
+
+  /* ── MAIN ── */
+  #main { max-width: 860px; margin: 0 auto; padding: 24px 16px 48px; }
+
+  /* ── TERMINAL BOOT ── */
+  #boot {
+    background: var(--bg); border: 1px solid #1e293b;
+    border-radius: 4px; padding: 14px 16px; margin-bottom: 24px;
+  }
+  .tline {
+    font-size: 11px; line-height: 1.9; opacity: 0;
+    animation: fadeIn 0.4s forwards;
+  }
+  .tline:nth-child(1) { animation-delay: 0.1s; color: var(--cyan); }
+  .tline:nth-child(2) { animation-delay: 0.5s; color: var(--muted); }
+  .tline:nth-child(3) { animation-delay: 1s;   color: var(--green); }
+
+  /* ── PANEL ── */
+  .panel {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 4px; overflow: hidden; margin-bottom: 18px;
+  }
+  .panel-head {
+    padding: 9px 15px; background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    font-size: 9px; letter-spacing: 0.15em; color: var(--cyan);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .panel-head span { color: var(--dim); }
+  .panel-body { padding: 18px; }
+
+  /* ── GRID ── */
+  .grid3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+  @media(max-width:560px){ .grid3 { grid-template-columns: 1fr 1fr; } }
+
+  .field-label {
+    font-size: 8px; letter-spacing: 0.15em;
+    color: var(--muted); margin-bottom: 6px;
+  }
+  select {
+    width: 100%; background: var(--bg3);
+    border: 1px solid var(--dim); color: var(--amber);
+    padding: 8px 10px; border-radius: 3px;
+    font-family: var(--mono); font-size: 12px; cursor: pointer;
+    outline: none; appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2364748b'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center;
+  }
+  select option { background: #0f172a; }
+
+  /* ── CONCEPTS ── */
+  #concepts-wrap {
+    display: flex; flex-wrap: wrap; gap: 8px; padding: 16px;
+  }
+  .concept-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 3px; cursor: pointer;
+    font-family: var(--mono); font-size: 11px;
+    border: 1px solid var(--dim); background: var(--bg3);
+    color: var(--muted); transition: all 0.2s; user-select: none;
+    letter-spacing: 0.04em;
+  }
+  .concept-btn.active { /* set via JS per color */ }
+  .hint { font-size: 9px; color: var(--dim); padding: 0 16px 10px; letter-spacing: 0.07em; }
+
+  /* ── TEXTAREA ── */
+  textarea {
+    width: 100%; min-height: 76px; background: var(--bg3);
+    border: 1px solid var(--dim); color: var(--text);
+    padding: 10px 12px; border-radius: 3px;
+    font-family: var(--mono); font-size: 12px;
+    resize: vertical; outline: none; line-height: 1.6;
+  }
+  textarea::placeholder { color: var(--dim); }
+
+  /* ── ERROR ── */
+  #error-box {
+    display: none; margin-bottom: 14px;
+    padding: 10px 14px; background: #1f0a0a;
+    border: 1px solid #7f1d1d; border-radius: 3px;
+    color: #fca5a5; font-size: 12px;
+  }
+
+  /* ── BUTTON ── */
+  #gen-btn {
+    width: 100%; padding: 14px;
+    background: linear-gradient(135deg, #0c4a6e, #0284c7);
+    border: 1px solid var(--cyan); border-radius: 4px;
+    color: #fff; font-family: var(--mono); font-size: 13px;
+    letter-spacing: 0.15em; cursor: pointer; transition: all 0.3s;
+    box-shadow: 0 0 20px #0284c755; margin-bottom: 28px;
+  }
+  #gen-btn:disabled {
+    background: var(--bg3); border-color: var(--dim);
+    color: var(--muted); box-shadow: none; cursor: not-allowed;
+  }
+
+  /* ── BLINK ── */
+  .blink { animation: blink 1s infinite; }
+  .blink2 { animation: blink 1s infinite 0.5s; }
+
+  /* ── OUTPUT ── */
+  #output { display: none; animation: fadeIn 0.4s ease; }
+
+  /* ── SIGNAL BADGE ── */
+  #signal-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 20px; border-radius: 4px;
+    font-family: var(--mono); font-weight: bold;
+    font-size: 15px; color: #fff; letter-spacing: 0.1em;
+  }
+
+  /* ── STATS ROW ── */
+  .stats-row {
+    display: flex; border-bottom: 1px solid var(--border2);
+  }
+  .stat-cell {
+    flex: 1; padding: 11px 14px;
+    border-right: 1px solid var(--border2);
+  }
+  .stat-cell:last-child { border-right: none; }
+  .stat-k { font-size: 8px; color: var(--muted); letter-spacing: 0.15em; margin-bottom: 3px; }
+  .stat-v { font-size: 13px; font-weight: bold; }
+
+  /* ── LEVELS ROW ── */
+  .levels-row {
+    display: flex; border-top: 1px solid var(--border2);
+    border-bottom: 1px solid var(--border2);
+  }
+  .level-cell {
+    flex: 1; padding: 11px 14px;
+    border-right: 1px solid var(--border2);
+  }
+  .level-cell:last-child { border-right: none; }
+
+  /* ── FULL ANALYSIS ── */
+  #analysis-body { padding: 20px; line-height: 0; }
+  .aline {
+    font-family: var(--mono); font-size: 12px;
+    color: var(--text); line-height: 1.9; display: block;
+  }
+  .aline.head { color: var(--cyan); font-weight: bold; margin-top: 12px; }
+  .aline.final { color: var(--amber); font-weight: bold; }
+
+  /* ── CONCEPT TAGS ── */
+  #used-concepts {
+    padding: 10px 14px; border-top: 1px solid var(--border2);
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  }
+  .used-k { font-size: 9px; color: var(--dim); letter-spacing: 0.1em; margin-right: 4px; }
+  .used-tag {
+    font-size: 9px; padding: 2px 7px;
+    border-radius: 2px; letter-spacing: 0.05em;
+  }
+
+  /* ── DISCLAIMER ── */
+  .disclaimer {
+    padding: 10px 14px; border-top: 1px solid var(--border2);
+    font-size: 9px; color: var(--dim); letter-spacing: 0.04em;
+  }
+
+  /* ── ANIMATIONS ── */
+  @keyframes pulse  { 0%,100%{opacity:1} 50%{opacity:.35} }
+  @keyframes blink  { 0%,100%{opacity:1} 50%{opacity:0} }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="header">
+  <div class="left">
+    <div class="dot"></div>
+    <span class="label-sm">SMC TERMINAL</span>
+    <span class="sep">|</span>
+    <span class="label-xs">SMART MONEY CONCEPTS · FOREX SIGNAL ENGINE</span>
+  </div>
+  <div id="clock"></div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <!-- BOOT -->
+  <div id="boot">
+    <div class="tline">&gt; INITIALIZING SMC SIGNAL ENGINE v2.4...</div>
+    <div class="tline">&gt; LOADING: Engineered Liquidity · Inducement · BOS · CHOCH · Liquidity Sweep</div>
+    <div class="tline">&gt; STATUS: READY — Configure your setup below and generate a signal call.</div>
+  </div>
+
+  <!-- SETUP -->
+  <div class="panel">
+    <div class="panel-head">◆ SETUP CONFIGURATION</div>
+    <div class="panel-body">
+      <div class="grid3">
+        <div>
+          <div class="field-label">INSTRUMENT</div>
+          <select id="pair">
+            <option>XAU/USD</option><option>EUR/USD</option><option>GBP/USD</option>
+            <option>USD/JPY</option><option>AUD/USD</option><option>USD/CAD</option>
+            <option>NZD/USD</option><option>USD/CHF</option><option>GBP/JPY</option>
+            <option>EUR/GBP</option><option>EUR/JPY</option><option>GBP/AUD</option>
+            <option>EUR/AUD</option><option>USD/ZAR</option><option>GBP/NZD</option>
+          </select>
+        </div>
+        <div>
+          <div class="field-label">TIMEFRAME</div>
+          <select id="tf">
+            <option>M1</option><option>M5</option><option>M15</option><option>M30</option>
+            <option selected>H1</option><option>H4</option><option>D1</option><option>W1</option>
+          </select>
+        </div>
+        <div>
+          <div class="field-label">SESSION</div>
+          <select id="session">
+            <option>London</option><option>New York</option><option>Tokyo</option>
+            <option>Sydney</option><option>Overlap (London/NY)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONCEPTS -->
+  <div class="panel">
+    <div class="panel-head">◆ SMC CONCEPTS OBSERVED ON CHART</div>
+    <div id="concepts-wrap">
+      <button class="concept-btn" data-id="engineered_liquidity" data-color="#f59e0b">⚡ Engineered Liquidity</button>
+      <button class="concept-btn" data-id="inducement"           data-color="#818cf8">🎯 Inducement</button>
+      <button class="concept-btn" data-id="sideways"             data-color="#94a3b8">↔ Sideways / Range</button>
+      <button class="concept-btn" data-id="choch"                data-color="#fb923c">🔄 Change of Character</button>
+      <button class="concept-btn" data-id="bos"                  data-color="#34d399">💥 Break of Structure</button>
+      <button class="concept-btn" data-id="liquidity_sweep"      data-color="#38bdf8">🌊 Liquidity Sweep</button>
+    </div>
+    <div class="hint">SELECT ALL THAT APPLY — the AI analyst will synthesize them into a cohesive signal narrative.</div>
+  </div>
+
+  <!-- CONTEXT -->
+  <div class="panel">
+    <div class="panel-head">◆ ADDITIONAL MARKET CONTEXT <span>(OPTIONAL)</span></div>
+    <div class="panel-body">
+      <textarea id="context" placeholder="e.g. Price swept previous week highs, bearish H4 engulfing, HTF bias is bearish, currently at 4H premium zone..."></textarea>
+    </div>
+  </div>
+
+  <!-- ERROR -->
+  <div id="error-box"></div>
+
+  <!-- BUTTON -->
+  <button id="gen-btn" onclick="generateSignal()">▶ GENERATE SMC SIGNAL CALL</button>
+
+  <!-- OUTPUT -->
+  <div id="output">
+
+    <!-- Signal panel -->
+    <div class="panel" style="margin-bottom:18px">
+      <div class="panel-head">
+        <span>◆ SIGNAL OUTPUT — <span id="out-pair"></span> <span id="out-tf"></span></span>
+        <span id="out-session"></span>
+      </div>
+
+      <!-- Stats row -->
+      <div class="stats-row">
+        <div class="stat-cell"><div class="stat-k">PAIR</div><div class="stat-v" style="color:#f59e0b" id="s-pair"></div></div>
+        <div class="stat-cell"><div class="stat-k">TF</div><div class="stat-v" style="color:#38bdf8" id="s-tf"></div></div>
+        <div class="stat-cell"><div class="stat-k">SESSION</div><div class="stat-v" style="color:#818cf8" id="s-session"></div></div>
+        <div class="stat-cell"><div class="stat-k">CONCEPTS</div><div class="stat-v" style="color:#34d399" id="s-concepts"></div></div>
+      </div>
+
+      <!-- Badge -->
+      <div style="padding:20px;text-align:center">
+        <div id="signal-badge"></div>
+      </div>
+
+      <!-- Levels row -->
+      <div class="levels-row" id="levels-row"></div>
+    </div>
+
+    <!-- Full analysis -->
+    <div class="panel">
+      <div class="panel-head">◆ FULL ANALYSIS BREAKDOWN</div>
+      <div id="analysis-body"></div>
+      <div id="used-concepts"></div>
+      <div class="disclaimer">⚠ AI-generated technical analysis for educational purposes only. Not financial advice. Always manage risk with proper position sizing and your own due diligence.</div>
+    </div>
+
+  </div><!-- /output -->
+</div><!-- /main -->
+
+<script>
+// ── Clock ──────────────────────────────────────────────
+function updateClock() {
+  document.getElementById('clock').textContent = new Date().toUTCString().replace(' GMT', ' UTC');
+}
+updateClock(); setInterval(updateClock, 1000);
+
+// ── Concept toggle ─────────────────────────────────────
+document.querySelectorAll('.concept-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const active = btn.classList.toggle('active');
+    const color  = btn.dataset.color;
+    if (active) {
+      btn.style.borderColor = color;
+      btn.style.background  = color + '22';
+      btn.style.color       = color;
+    } else {
+      btn.style.borderColor = '';
+      btn.style.background  = '';
+      btn.style.color       = '';
+    }
+  });
+});
+
+// ── Helpers ────────────────────────────────────────────
+function getSelected() {
+  return [...document.querySelectorAll('.concept-btn.active')]
+    .map(b => b.textContent.trim());
+}
+
+function parseSignal(text) {
+  const u = text.toUpperCase();
+  const bi = u.indexOf('BUY'), si = u.indexOf('SELL');
+  if (bi === -1 && si === -1) return 'WAIT';
+  if (bi === -1) return 'SELL';
+  if (si === -1) return 'BUY';
+  return bi < si ? 'BUY' : 'SELL';
+}
+
+function parseSections(text) {
+  const out = {};
+  const pats = [
+    ['entry',  /(?:entry|enter)[:\s]+([^\n.]+)/i],
+    ['sl',     /(?:stop.?loss|sl)[:\s]+([^\n.]+)/i],
+    ['tp',     /(?:take.?profit|tp\d?)[:\s]+([^\n.]+)/i],
+    ['rr',     /(?:risk.?reward|r:r|r\/r)[:\s]+([^\n.]+)/i],
+  ];
+  for (const [k, re] of pats) {
+    const m = text.match(re);
+    if (m) out[k] = m[1].trim().substring(0, 40);
+  }
+  return out;
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-box');
+  el.textContent = '⚠ ' + msg;
+  el.style.display = 'block';
+}
+function hideError() {
+  document.getElementById('error-box').style.display = 'none';
+}
+
+// ── Generate ───────────────────────────────────────────
+async function generateSignal() {
+  hideError();
+  const concepts = getSelected();
+  if (!concepts.length) { showError('Select at least one SMC concept.'); return; }
+
+  const pair    = document.getElementById('pair').value;
+  const tf      = document.getElementById('tf').value;
+  const session = document.getElementById('session').value;
+  const ctx     = document.getElementById('context').value.trim();
+
+  const btn = document.getElementById('gen-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="blink">█</span> ANALYZING MARKET STRUCTURE... <span class="blink2">█</span>';
+  document.getElementById('output').style.display = 'none';
+
+  const prompt = `You are an elite Smart Money Concepts (SMC) forex analyst.
+Analyze the following setup and provide a precise technical call.
+
+Pair: ${pair}
+Timeframe: ${tf}
+Session: ${session}
+SMC Concepts Observed: ${concepts.join(', ')}
+Additional Context: ${ctx || 'No additional context provided.'}
+
+Provide a structured analysis:
+1. BIAS (Bullish/Bearish/Neutral) with one-sentence reasoning
+2. SMC STRUCTURE BREAKDOWN — explain how the detected concepts interact
+3. ENTRY ZONE (price level or zone description)
+4. STOP LOSS placement
+5. TAKE PROFIT targets (TP1, TP2, TP3)
+6. RISK:REWARD ratio
+7. SESSION TIMING for best execution
+8. INVALIDATION — when does this setup fail?
+9. FINAL SIGNAL — BUY or SELL or WAIT
+10. CONFIDENCE — Low / Medium / High with brief rationale
+
+Be decisive, concise, and technically precise. Use SMC terminology throughout.`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const raw = await res.text();
+    let data;
+    try { data = JSON.parse(raw); }
+    catch { throw new Error('Malformed response from API'); }
+
+    if (!res.ok || data.type === 'error') {
+      throw new Error(data?.error?.message || `HTTP ${res.status}`);
+    }
+
+    const text = Array.isArray(data.content)
+      ? data.content.map(b => b.text || '').join('')
+      : '';
+
+    if (!text) throw new Error('Empty response — please try again.');
+
+    renderOutput(pair, tf, session, concepts, text);
+
+  } catch (e) {
+    showError(e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '▶ GENERATE SMC SIGNAL CALL';
+  }
+}
+
+// ── Render ─────────────────────────────────────────────
+function renderOutput(pair, tf, session, concepts, text) {
+  // header labels
+  document.getElementById('out-pair').textContent    = pair;
+  document.getElementById('out-tf').textContent      = tf;
+  document.getElementById('out-session').textContent = session;
+
+  // stats
+  document.getElementById('s-pair').textContent     = pair;
+  document.getElementById('s-tf').textContent       = tf;
+  document.getElementById('s-session').textContent  = session;
+  document.getElementById('s-concepts').textContent = concepts.length;
+
+  // badge
+  const sig = parseSignal(text);
+  const sigCfg = {
+    BUY:  { bg: 'linear-gradient(135deg,#064e3b,#059669)', border:'#10b981', label:'▲ BUY LONG',   glow:'#059669' },
+    SELL: { bg: 'linear-gradient(135deg,#7f1d1d,#dc2626)', border:'#ef4444', label:'▼ SELL SHORT',  glow:'#dc2626' },
+    WAIT: { bg: 'linear-gradient(135deg,#1c1917,#57534e)', border:'#78716c', label:'⏸ WAIT / OBSERVE', glow:'#78716c' },
+  };
+  const sc = sigCfg[sig];
+  const badge = document.getElementById('signal-badge');
+  badge.textContent = sc.label;
+  badge.style.cssText = `display:inline-flex;align-items:center;padding:9px 22px;border-radius:4px;font-weight:bold;font-size:15px;color:#fff;letter-spacing:0.1em;background:${sc.bg};border:1px solid ${sc.border};box-shadow:0 0 18px ${sc.glow}55;font-family:'Share Tech Mono',monospace;`;
+
+  // levels
+  const sec = parseSections(text);
+  const levels = [
+    ['ENTRY', sec.entry, '#38bdf8'],
+    ['STOP LOSS', sec.sl, '#ef4444'],
+    ['TAKE PROFIT', sec.tp, '#10b981'],
+    ['R:R', sec.rr, '#f59e0b'],
+  ].filter(([,v]) => v);
+
+  const lr = document.getElementById('levels-row');
+  lr.innerHTML = levels.map(([k,v,c]) =>
+    `<div class="level-cell">
+      <div class="stat-k">${k}</div>
+      <div style="font-size:11px;color:${c};font-family:var(--mono)">${v}</div>
+    </div>`
+  ).join('');
+
+  // full analysis
+  const ab = document.getElementById('analysis-body');
+  ab.innerHTML = text.split('\n').map(line => {
+    const l = line.trim();
+    if (!l) return '<span class="aline"> </span>';
+    const isFinal  = /FINAL SIGNAL|CONFIDENCE/i.test(l);
+    const isHeader = /^\d+\.|^[A-Z][A-Z\s]+:/i.test(l);
+    const cls = isFinal ? 'aline final' : isHeader ? 'aline head' : 'aline';
+    return `<span class="${cls}">${l}</span>`;
+  }).join('');
+
+  // used concepts
+  const uc = document.getElementById('used-concepts');
+  const conceptMeta = {
+    'engineered liquidity': { color:'#f59e0b', icon:'⚡' },
+    'inducement':           { color:'#818cf8', icon:'🎯' },
+    'sideways / range':     { color:'#94a3b8', icon:'↔'  },
+    'change of character':  { color:'#fb923c', icon:'🔄' },
+    'break of structure':   { color:'#34d399', icon:'💥' },
+    'liquidity sweep':      { color:'#38bdf8', icon:'🌊' },
+  };
+  uc.innerHTML = '<span class="used-k">CONCEPTS:</span>' +
+    concepts.map(c => {
+      const key = c.replace(/^[\S\s]{1,3}\s/, '').toLowerCase();
+      const meta = conceptMeta[key] || { color:'#64748b', icon:'' };
+      return `<span class="used-tag" style="background:${meta.color}11;border:1px solid ${meta.color}44;color:${meta.color}">${meta.icon} ${c.replace(/^[\S\s]{1,3}\s/, '')}</span>`;
+    }).join('');
+
+  // show
+  const out = document.getElementById('output');
+  out.style.display = 'block';
+  out.scrollIntoView({ behavior: 'smooth' });
+}
+</script>
+</body>
+</html>
