@@ -249,6 +249,27 @@
     <div class="tline">&gt; STATUS: READY — Configure your setup below and generate a signal call.</div>
   </div>
 
+  <!-- API KEY -->
+  <div class="panel" id="apikey-panel">
+    <div class="panel-head">◆ API KEY <span style="color:#ef4444">REQUIRED</span></div>
+    <div class="panel-body" style="display:flex;gap:10px;align-items:center">
+      <input type="password" id="apikey" placeholder="sk-ant-api03-..." style="
+        flex:1;background:var(--bg3);border:1px solid var(--dim);
+        color:var(--amber);padding:8px 12px;border-radius:3px;
+        font-family:var(--mono);font-size:12px;outline:none;
+      "/>
+      <button onclick="saveKey()" style="
+        background:var(--bg2);border:1px solid var(--dim);
+        color:var(--cyan);padding:8px 14px;border-radius:3px;
+        font-family:var(--mono);font-size:11px;cursor:pointer;
+        letter-spacing:0.08em;white-space:nowrap;
+      ">SAVE KEY</button>
+    </div>
+    <div style="padding:0 18px 10px;font-size:9px;color:var(--dim);letter-spacing:0.06em">
+      Your key is stored only in this browser session and never sent anywhere except Anthropic's API.
+    </div>
+  </div>
+
   <!-- SETUP -->
   <div class="panel">
     <div class="panel-head">◆ SETUP CONFIGURATION</div>
@@ -349,6 +370,15 @@
 </div><!-- /main -->
 
 <script>
+// ── API Key ────────────────────────────────────────────
+function saveKey() {
+  const k = document.getElementById('apikey').value.trim();
+  if (!k) { alert('Paste your Anthropic API key first.'); return; }
+  window.ANTHROPIC_API_KEY = k;
+  document.getElementById('apikey-panel').style.borderColor = '#10b981';
+  document.getElementById('apikey').style.color = '#10b981';
+}
+
 // ── Clock ──────────────────────────────────────────────
 function updateClock() {
   document.getElementById('clock').textContent = new Date().toUTCString().replace(' GMT', ' UTC');
@@ -416,6 +446,7 @@ async function generateSignal() {
   hideError();
   const concepts = getSelected();
   if (!concepts.length) { showError('Select at least one SMC concept.'); return; }
+  if (!window.ANTHROPIC_API_KEY) { showError('Paste and save your Anthropic API key at the top first.'); return; }
 
   const pair    = document.getElementById('pair').value;
   const tf      = document.getElementById('tf').value;
@@ -453,7 +484,12 @@ Be decisive, concise, and technically precise. Use SMC terminology throughout.`;
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': window.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1000,
